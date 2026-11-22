@@ -231,6 +231,7 @@ jobs:
           pytest -v tests/test_ai_security.py -k "not real_llm" --junitxml=reports/ai-security-tests.xml
 
       - name: Pull LLM model into Ollama
+        if: always()
         continue-on-error: true
         run: |
           curl -sS -X POST http://localhost:11434/api/pull -d "{\"model\": \"$LLM_MODEL\", \"stream\": false}"

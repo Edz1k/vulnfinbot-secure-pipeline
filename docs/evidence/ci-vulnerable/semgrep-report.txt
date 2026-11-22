@@ -1,0 +1,67 @@
+                    
+                    
+┌──────────────────┐
+│ 10 Code Findings │
+└──────────────────┘
+                        
+    app/insecure_demo.py
+   ❯❯❱ security.semgrep.hardcoded-secret
+          ❰❰ Blocking ❱❱
+          Hardcoded credential. Load secrets from environment variables or a secret manager.
+                                                                                            
+           20┆ OPENAI_API_KEY = "sk-demo-1234567890abcdefghijklmnop"
+            ⋮┆----------------------------------------
+           21┆ ADMIN_PASSWORD = "SuperSecret123!"
+   
+   ❯❯❱ security.semgrep.python-eval-usage
+          ❰❰ Blocking ❱❱
+          eval() executes arbitrary code. Never call eval() on user or model input; use ast.literal_eval or
+          explicit parsing.                                                                                
+                                                                                                           
+           28┆ return {"result": eval(expression)}
+   
+   ❯❯❱ security.semgrep.subprocess-shell-true
+          ❰❰ Blocking ❱❱
+          subprocess with shell=True allows command injection. Pass an argument list and shell=False.
+                                                                                                     
+           35┆ out = subprocess.check_output(f"cat reports/{name}", shell=True)
+   
+   ❯❯❱ security.semgrep.insecure-deserialization
+          ❰❰ Blocking ❱❱
+          pickle/yaml.load on untrusted data leads to remote code execution. Use json or yaml.safe_load.
+                                                                                                        
+           42┆ return {"session": str(pickle.loads(request.data))}
+   
+   ❯❯❱ security.semgrep.sql-string-formatting
+          ❰❰ Blocking ❱❱
+          SQL built with string formatting is vulnerable to SQL injection. Use parameterized queries.
+                                                                                                     
+           50┆ cur.execute("SELECT * FROM users WHERE id = '" + uid + "'")
+   
+    ❯❱ security.semgrep.weak-hash-algorithm
+          ❰❰ Blocking ❱❱
+          MD5/SHA1 are cryptographically broken. Use hashlib.sha256 (or bcrypt/argon2 for passwords).
+                                                                                                     
+           56┆ return hashlib.md5(pw.encode()).hexdigest()
+   
+    ❯❱ security.semgrep.logging-user-message
+          ❰❰ Blocking ❱❱
+          Logging raw user messages can leak sensitive financial data (PII). Log metadata such as length
+          instead.                                                                                      
+                                                                                                        
+           63┆ logger.info("user said: %s", message)
+   
+    ❯❱ security.semgrep.llm-prompt-concatenation
+          ❰❰ Blocking ❱❱
+          User input concatenated into the system prompt enables prompt injection. Send user input as a
+          separate 'user' role message.                                                                
+                                                                                                       
+           65┆ prompt = SYSTEM_PROMPT + "\nUser: " + message
+          
+    run.py
+   ❯❯❱ security.semgrep.flask-debug-enabled
+          ❰❰ Blocking ❱❱
+          Flask debug mode exposes the Werkzeug debugger (remote code execution). Never enable it outside
+          local development.                                                                             
+                                                                                                         
+           12┆ app.run(host="0.0.0.0", port=port, debug=True)  # [V11] debug + all interfaces

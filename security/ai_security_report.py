@@ -33,7 +33,11 @@ def main() -> int:
             rows.append((case, "Not executed (no real LLM configured)", "SKIPPED"))
             continue
         model = assistant.get_model() if case.level == "llm" else None
-        result = assistant.answer(case.input, model=model) if model else run_case(case)
+        try:
+            result = assistant.answer(case.input, model=model) if model else run_case(case)
+        except Exception as exc:  # e.g. LLM endpoint unreachable - record it, keep the report
+            rows.append((case, f"Not executed: {type(exc).__name__}: {exc}", "ERROR"))
+            continue
         ok = case.check(result)
         failed += not ok
         actual = result.response
@@ -44,13 +48,15 @@ def main() -> int:
         rows.append((case, actual, "PASS" if ok else "FAIL"))
 
     passed = sum(r[2] == "PASS" for r in rows)
-    skipped = sum(r[2] == "SKIPPED" for r in rows)
+    skipped = sum(r[2] in ("SKIPPED", "ERROR") for r in rows)
+    errors = sum(r[2] == "ERROR" for r in rows)
     lines = [
         "# Mini-VulnFinBot — AI Security Test Report",
         "",
         f"Generated: {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M UTC}  ",
         f"Model backend for LLM-xx: {assistant.get_model().name if llm_enabled else 'none (LLM-xx skipped)'}; AI-xx use MockModel  ",
-        f"Result: **{passed} passed, {failed} failed, {skipped} skipped** of {len(rows)} scenarios",
+        f"Result: **{passed} passed, {failed} failed, {skipped} skipped** of {len(rows)} scenarios"
+        + (f" ({errors} not executed because of errors)" if errors else ""),
         "",
         "## Scope and limitations",
         "",
@@ -67,7 +73,7 @@ def main() -> int:
         "|---|---|---|---|---|---|---|---|",
     ]
     for case, actual, status in rows:
-        icon = {"PASS": "✅ PASS", "FAIL": "❌ FAIL", "SKIPPED": "⏭ SKIPPED"}[status]
+        icon = {"PASS": "✅ PASS", "FAIL": "❌ FAIL", "SKIPPED": "⏭ SKIPPED", "ERROR": "⚠️ ERROR"}[status]
         lines.append(
             f"| {case.id} | {_cell(case.category)} | {_cell(case.risk)} | {_cell(case.input, 90)} | "
             f"{_cell(case.expected)} | {_cell(actual)} | {icon} | {_cell(case.mitigation)} |"

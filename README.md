@@ -165,12 +165,13 @@ The branch `security-test/vulnerable-demo` contains controlled insecure code (ne
 
 | Tool | Before (vulnerable branch) | After (main) | Remediation |
 |---|---|---|---|
-| Bandit | 8 (2 HIGH) | 0 | removed eval / shell=True / pickle / md5 / hardcoded secrets |
-| Semgrep | 9 (6 ERROR) | 0 | same + no prompt concatenation, no PII logging |
-| pip-audit | 42 advisories | 0 | Flask 3.1.3, Werkzeug 3.1.9, Jinja2 3.1.6, gunicorn 27.0.1 |
+| Bandit | 9 (2 HIGH, 4 MEDIUM, 3 LOW) | 0 | removed eval / shell=True / pickle / md5 / hardcoded secrets / bind 0.0.0.0 |
+| Semgrep | 10 (7 ERROR, 3 WARNING) | 0 | same + no Flask debug, no prompt concatenation, no PII logging |
+| pip-audit | 23 advisories in 5 packages | 0 | Flask 3.1.3, Werkzeug 3.1.9, Jinja2 3.1.6, gunicorn 27.0.1, no setuptools at runtime |
 | Trivy | 268 (57 HIGH) | 0 | Alpine base + `apk upgrade`, pip/setuptools removed, non-root user |
-| OWASP ZAP | 3 warnings | 1 informational | security headers added |
-| AI tests | 2 failed | 0 failed | output HTML escaping restored |
+| OWASP ZAP | 3 warnings (2 LOW, 1 INFO) | 1 informational | security headers added |
+| AI tests (app-level) | 2 failed | 0 failed | output HTML escaping restored |
+| AI tests (real LLM, Ollama) | — | 1 of 3 failed (LLM-01) | documented residual risk, see technical report |
 
 Recommendations: keep dependencies pinned and updated (Dependabot), rebuild images regularly,
 keep secrets in GitHub Secrets, require the pipeline to pass before merge (branch protection),

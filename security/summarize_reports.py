@@ -41,7 +41,13 @@ def semgrep(d):
 
 def pip_audit(d):
     deps = d.get("dependencies", d if isinstance(d, list) else [])
-    vulns = [(x["name"], x["version"], v["id"], v.get("fix_versions")) for x in deps for v in x.get("vulns", [])]
+    seen, vulns = set(), []
+    for x in deps:
+        for v in x.get("vulns", []):
+            key = (x["name"], x["version"], v["id"])
+            if key not in seen:  # pip-audit may list the same advisory twice
+                seen.add(key)
+                vulns.append((x["name"], x["version"], v["id"], v.get("fix_versions")))
     ids = [f"{n}=={ver}: {i} (fix: {', '.join(f) or 'n/a'})" for n, ver, i, f in vulns]
     # pip-audit reports advisories without a CVSS score -> "UNRATED"
     return len(vulns), collections.Counter({"UNRATED": len(vulns)} if vulns else {}), ids
