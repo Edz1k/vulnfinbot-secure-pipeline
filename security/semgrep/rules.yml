@@ -1,0 +1,109 @@
+rules:
+  - id: python-eval-usage
+    languages: [python]
+    severity: ERROR
+    message: "eval() executes arbitrary code. Never call eval() on user or model input; use ast.literal_eval or explicit parsing."
+    pattern: eval(...)
+    metadata: {cwe: "CWE-95: Eval Injection", owasp: "A03:2021 Injection"}
+
+  - id: python-exec-usage
+    languages: [python]
+    severity: ERROR
+    message: "exec() executes arbitrary code."
+    pattern: exec(...)
+    metadata: {cwe: "CWE-95"}
+
+  - id: subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: "subprocess with shell=True allows command injection. Pass an argument list and shell=False."
+    pattern-either:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+    metadata: {cwe: "CWE-78: OS Command Injection"}
+
+  - id: insecure-deserialization
+    languages: [python]
+    severity: ERROR
+    message: "pickle/yaml.load on untrusted data leads to remote code execution. Use json or yaml.safe_load."
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: yaml.load(...)
+    metadata: {cwe: "CWE-502"}
+
+  - id: flask-debug-enabled
+    languages: [python]
+    severity: ERROR
+    message: "Flask debug mode exposes the Werkzeug debugger (remote code execution). Never enable it outside local development."
+    pattern-either:
+      - pattern: $APP.run(..., debug=True, ...)
+      - pattern: $APP.debug = True
+    metadata: {cwe: "CWE-489: Active Debug Code"}
+
+  - id: hardcoded-secret
+    languages: [python]
+    severity: ERROR
+    message: "Hardcoded credential. Load secrets from environment variables or a secret manager."
+    patterns:
+      - pattern: $NAME = "$VALUE"
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: (?i).*(password|passwd|secret|api_?key|token).*
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: .{6,}
+    metadata: {cwe: "CWE-798: Hardcoded Credentials"}
+
+  - id: weak-hash-algorithm
+    languages: [python]
+    severity: WARNING
+    message: "MD5/SHA1 are cryptographically broken. Use hashlib.sha256 (or bcrypt/argon2 for passwords)."
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    metadata: {cwe: "CWE-327"}
+
+  - id: sql-string-formatting
+    languages: [python]
+    severity: ERROR
+    message: "SQL built with string formatting is vulnerable to SQL injection. Use parameterized queries."
+    pattern-either:
+      - pattern: $CUR.execute(f"...")
+      - pattern: $CUR.execute("..." % ...)
+      - pattern: $CUR.execute("..." + ...)
+      - pattern: $CUR.execute("...".format(...))
+    metadata: {cwe: "CWE-89"}
+
+  - id: logging-user-message
+    languages: [python]
+    severity: WARNING
+    message: "Logging raw user messages can leak sensitive financial data (PII). Log metadata such as length instead."
+    patterns:
+      - pattern-either:
+          - pattern: logger.$LVL(..., $DATA["message"], ...)
+          - pattern: logging.$LVL(..., $DATA["message"], ...)
+          - pattern: logger.$LVL(..., message, ...)
+          - pattern: logger.$LVL(f"...{message}...")
+    metadata: {cwe: "CWE-532: Sensitive Information in Log File"}
+
+  - id: llm-prompt-concatenation
+    languages: [python]
+    severity: WARNING
+    message: "User input concatenated into the system prompt enables prompt injection. Send user input as a separate 'user' role message."
+    pattern-either:
+      - pattern: SYSTEM_PROMPT + $X
+      - pattern: f"{SYSTEM_PROMPT}...{message}..."
+      - pattern: '"...".format(SYSTEM_PROMPT, ...)'
+    metadata: {owasp-llm: "LLM01 Prompt Injection"}
+
+  - id: unescaped-model-output-in-html
+    languages: [python]
+    severity: WARNING
+    message: "Model output rendered as HTML without escaping (insecure output handling / XSS)."
+    pattern-either:
+      - pattern: flask.Markup($X)
+      - pattern: markupsafe.Markup($X)
+      - pattern: flask.render_template_string(...)
+    metadata: {owasp-llm: "LLM05 Improper Output Handling"}

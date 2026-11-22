@@ -1,0 +1,288 @@
+name: Security CI Pipeline
+
+on:
+  push:
+    branches: ["main", "security-test/**"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  IMAGE_NAME: vulnfinbot:${{ github.sha }}
+  TRIVY_IMAGE: aquasec/trivy:0.62.1
+  ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:stable
+
+jobs:
+  # ---------------------------------------------------------------- 1. Tests
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: |
+          mkdir -p reports
+          pytest -v tests/test_app.py --junitxml=reports/unit-tests.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-unit-tests
+          path: reports/
+          if-no-files-found: warn
+
+  # ----------------------------------------------------------------- 2. SAST
+  sast:
+    name: SAST (Bandit + Semgrep)
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install scanners
+        run: pip install bandit semgrep
+
+      - name: Prepare reports directory
+        run: mkdir -p reports
+
+      - name: Bandit scan (report)
+        continue-on-error: true
+        run: |
+          bandit -r app/ -f json -o reports/bandit-report.json
+          bandit -r app/ -f txt -o reports/bandit-report.txt
+
+      - name: Semgrep scan (report)
+        continue-on-error: true
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          semgrep scan --config security/semgrep/rules.yml --json --output reports/semgrep-report.json app/
+          semgrep scan --config security/semgrep/rules.yml --text --output reports/semgrep-report.txt app/
+
+      - name: Upload SAST reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-sast
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Security gate - fail on high severity Bandit / ERROR Semgrep findings
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          bandit -r app/ --severity-level high --confidence-level medium -q
+          semgrep scan --config security/semgrep/rules.yml --severity ERROR --error -q app/
+
+  # ---------------------------------------------------- 3. Dependency scanning
+  dependency-scan:
+    name: Dependency scan (pip-audit)
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: pip-audit (report)
+        continue-on-error: true
+        run: |
+          mkdir -p reports
+          pip-audit -r requirements.txt -f json -o reports/dependency-report.json --desc
+          pip-audit -r requirements.txt --desc | tee reports/dependency-report.txt
+
+      - name: Upload dependency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-dependencies
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Security gate - fail on vulnerable dependencies
+        run: pip-audit -r requirements.txt
+
+  # ---------------------------------------------- 4. Docker build + Trivy scan
+  container-scan:
+    name: Docker build + Trivy
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t "$IMAGE_NAME" .
+
+      - name: Smoke test container
+        run: |
+          docker run -d --name vfb -p 5000:5000 "$IMAGE_NAME"
+          for i in $(seq 1 30); do curl -fsS http://localhost:5000/health && break; sleep 1; done
+          curl -fsS -X POST http://localhost:5000/api/chat -H 'Content-Type: application/json' \
+               -d '{"message":"How can I manage my monthly budget?"}'
+          docker rm -f vfb
+
+      - name: Trivy image scan (report)
+        continue-on-error: true
+        run: |
+          mkdir -p reports && chmod 777 reports
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/reports:/out" \
+            "$TRIVY_IMAGE" image --scanners vuln --format json --output /out/trivy-report.json "$IMAGE_NAME"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/reports:/out" \
+            "$TRIVY_IMAGE" image --scanners vuln --format table --output /out/trivy-report.txt "$IMAGE_NAME"
+          cat reports/trivy-report.txt | head -60
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-trivy
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Security gate - fail on fixable CRITICAL vulnerabilities
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            "$TRIVY_IMAGE" image --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE_NAME"
+
+  # ----------------------------------------------------------- 5. DAST (ZAP)
+  dast:
+    name: DAST (OWASP ZAP baseline)
+    runs-on: ubuntu-latest
+    needs: container-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start application
+        run: |
+          docker build -t "$IMAGE_NAME" .
+          docker run -d --name vfb -p 5000:5000 "$IMAGE_NAME"
+          for i in $(seq 1 30); do curl -fsS http://localhost:5000/health && break; sleep 1; done
+
+      - name: OWASP ZAP baseline scan
+        continue-on-error: true
+        run: |
+          mkdir -p reports && chmod 777 reports
+          docker run --rm --network host -v "$PWD/reports:/zap/wrk/:rw" "$ZAP_IMAGE" \
+            zap-baseline.py -t http://localhost:5000 \
+              -J zap-report.json -r zap-report.html -w zap-report.md -I
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-zap
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Stop application
+        if: always()
+        run: docker rm -f vfb || true
+
+  # ---------------------------------------------------- 6. AI security tests
+  ai-security:
+    name: AI security tests
+    runs-on: ubuntu-latest
+    needs: tests
+    permissions:
+      contents: read
+      models: read   # GitHub Models: real LLM for prompt-injection tests
+    env:
+      LLM_PROVIDER: github
+      LLM_MODEL: openai/gpt-4o-mini
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Application-level AI security tests (mock model)
+        run: |
+          mkdir -p reports
+          pytest -v tests/test_ai_security.py -k "not real_llm" --junitxml=reports/ai-security-tests.xml
+
+      - name: Real LLM prompt-injection tests (GitHub Models)
+        continue-on-error: true
+        run: pytest -v tests/test_ai_security.py -k "real_llm"
+
+      - name: Generate AI security report
+        if: always()
+        continue-on-error: true
+        run: |
+          python -m security.ai_security_report
+          cat reports/ai-security-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload AI security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-ai-security
+          path: reports/
+          if-no-files-found: warn
+
+  # ------------------------------------------- 7. Centralized security report
+  security-report:
+    name: Collect security reports
+    runs-on: ubuntu-latest
+    needs: [tests, sast, dependency-scan, container-scan, dast, ai-security]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: report-*
+          path: reports/
+          merge-multiple: true
+
+      - name: Build summary
+        run: |
+          python security/summarize_reports.py reports/ > reports/security-summary.md
+          cat reports/security-summary.md >> "$GITHUB_STEP_SUMMARY"
+          ls -la reports/
+
+      - name: Upload all security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnfinbot-security-reports
+          path: reports/
+          retention-days: 30
+          if-no-files-found: warn
