@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: report-unit-tests
           path: reports/
@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload SAST reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: report-sast
           path: reports/
@@ -119,7 +119,7 @@ jobs:
 
       - name: Upload dependency report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: report-dependencies
           path: reports/
@@ -158,7 +158,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: report-trivy
           path: reports/
@@ -192,7 +192,7 @@ jobs:
 
       - name: Upload ZAP report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: report-zap
           path: reports/
@@ -237,19 +237,21 @@ jobs:
           curl -sS http://localhost:11434/api/tags
 
       - name: Real LLM prompt-injection tests (Ollama)
-        continue-on-error: true
-        run: pytest -v tests/test_ai_security.py -k "real_llm"
+        run: |
+          # Findings from a real model are documented, not a build failure.
+          pytest -v tests/test_ai_security.py -k "real_llm" \
+            || echo "::warning title=AI security::Real LLM failed at least one prompt-injection scenario - see ai-security-report.md"
 
       - name: Generate AI security report
         if: always()
         continue-on-error: true
         run: |
-          python -m security.ai_security_report
+          python -m security.ai_security_report || true
           cat reports/ai-security-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload AI security report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: report-ai-security
           path: reports/
@@ -268,7 +270,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download all reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: report-*
           path: reports/
@@ -281,7 +283,7 @@ jobs:
           ls -la reports/
 
       - name: Upload all security reports
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: vulnfinbot-security-reports
           path: reports/
