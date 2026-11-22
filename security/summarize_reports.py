@@ -9,7 +9,7 @@ import pathlib
 import re
 import sys
 
-ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "UNKNOWN"]
+ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "UNKNOWN", "UNRATED"]
 
 
 def load(path):
@@ -43,7 +43,8 @@ def pip_audit(d):
     deps = d.get("dependencies", d if isinstance(d, list) else [])
     vulns = [(x["name"], x["version"], v["id"], v.get("fix_versions")) for x in deps for v in x.get("vulns", [])]
     ids = [f"{n}=={ver}: {i} (fix: {', '.join(f) or 'n/a'})" for n, ver, i, f in vulns]
-    return len(vulns), collections.Counter({"HIGH": len(vulns)} if vulns else {}), ids
+    # pip-audit reports advisories without a CVSS score -> "UNRATED"
+    return len(vulns), collections.Counter({"UNRATED": len(vulns)} if vulns else {}), ids
 
 
 def trivy(d):

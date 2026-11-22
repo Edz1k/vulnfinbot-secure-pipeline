@@ -71,16 +71,16 @@ jobs:
       - name: Bandit scan (report)
         continue-on-error: true
         run: |
-          bandit -r app/ -f json -o reports/bandit-report.json
-          bandit -r app/ -f txt -o reports/bandit-report.txt
+          bandit -r app/ run.py -f json -o reports/bandit-report.json
+          bandit -r app/ run.py -f txt -o reports/bandit-report.txt
 
       - name: Semgrep scan (report)
         continue-on-error: true
         env:
           SEMGREP_SEND_METRICS: "off"
         run: |
-          semgrep scan --config security/semgrep/rules.yml --json --output reports/semgrep-report.json app/
-          semgrep scan --config security/semgrep/rules.yml --text --output reports/semgrep-report.txt app/
+          semgrep scan --config security/semgrep/rules.yml --json --output reports/semgrep-report.json app/ run.py
+          semgrep scan --config security/semgrep/rules.yml --text --output reports/semgrep-report.txt app/ run.py
 
       - name: Upload SAST reports
         if: always()
@@ -94,8 +94,8 @@ jobs:
         env:
           SEMGREP_SEND_METRICS: "off"
         run: |
-          bandit -r app/ --severity-level high --confidence-level medium -q
-          semgrep scan --config security/semgrep/rules.yml --severity ERROR --error -q app/
+          bandit -r app/ run.py --severity-level high --confidence-level medium -q
+          semgrep scan --config security/semgrep/rules.yml --severity ERROR --error -q app/ run.py
 
   # ---------------------------------------------------- 3. Dependency scanning
   dependency-scan:
