@@ -70,16 +70,21 @@ jobs:
       - name: Bandit scan (report)
         continue-on-error: true
         run: |
-          bandit -r app/ run.py -f json -o reports/bandit-report.json
-          bandit -r app/ run.py -f txt -o reports/bandit-report.txt
+          # Each report is generated even if the previous command found issues (exit 1).
+          rc=0
+          bandit -r app/ run.py -f json -o reports/bandit-report.json || rc=$?
+          bandit -r app/ run.py -f txt -o reports/bandit-report.txt || rc=$?
+          exit $rc
 
       - name: Semgrep scan (report)
         continue-on-error: true
         env:
           SEMGREP_SEND_METRICS: "off"
         run: |
-          semgrep scan --config security/semgrep/rules.yml --json --output reports/semgrep-report.json app/ run.py
-          semgrep scan --config security/semgrep/rules.yml --text --output reports/semgrep-report.txt app/ run.py
+          rc=0
+          semgrep scan --config security/semgrep/rules.yml --json --output reports/semgrep-report.json app/ run.py || rc=$?
+          semgrep scan --config security/semgrep/rules.yml --text --output reports/semgrep-report.txt app/ run.py || rc=$?
+          exit $rc
 
       - name: Upload SAST reports
         if: always()
@@ -114,8 +119,11 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p reports
-          pip-audit -r requirements.txt -f json -o reports/dependency-report.json --desc
-          pip-audit -r requirements.txt --desc | tee reports/dependency-report.txt
+          rc=0
+          pip-audit -r requirements.txt -f json -o reports/dependency-report.json --desc || rc=$?
+          pip-audit -r requirements.txt --desc > reports/dependency-report.txt 2>&1 || rc=$?
+          cat reports/dependency-report.txt
+          exit $rc
 
       - name: Upload dependency report
         if: always()

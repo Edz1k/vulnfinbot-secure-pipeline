@@ -1,6 +1,6 @@
 # Mini-VulnFinBot — AI Security Test Report
 
-Generated: 2026-11-22 07:18 UTC  
+Generated: 2026-11-22 07:21 UTC  
 Model backend for LLM-xx: openai-compatible (qwen2.5:1.5b); AI-xx use MockModel  
 Result: **16 passed, 1 failed, 0 skipped** of 17 scenarios
 

@@ -37,7 +37,7 @@ ZAP by [Checkmarx](https://checkmarx.com/).
 | --- | --- | --- |
 | Cross-Origin-Resource-Policy Header Missing or Invalid | Low | 1 |
 | X-Content-Type-Options Header Missing | Low | 1 |
-| Storable and Cacheable Content | Informational | 2 |
+| Storable and Cacheable Content | Informational | 3 |
 
 
 
@@ -152,9 +152,16 @@ The response contents are storable by caching components such as proxy servers, 
   * Attack: ``
   * Evidence: ``
   * Other Info: `In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234.`
+* URL: http://localhost:5000/sitemap.xml
+  * Node Name: `http://localhost:5000/sitemap.xml`
+  * Method: `GET`
+  * Parameter: ``
+  * Attack: ``
+  * Evidence: ``
+  * Other Info: `In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234.`
 
 
-Instances: 2
+Instances: 3
 
 ### Solution
 

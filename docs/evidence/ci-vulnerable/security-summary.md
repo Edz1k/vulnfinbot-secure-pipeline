@@ -7,7 +7,7 @@
 | pip-audit | 23 | UNRATED: 23 | Upgrade affected packages to the fixed versions and re-pin requirements.txt. |
 | Trivy | 268 | HIGH: 57, MEDIUM: 119, LOW: 85, UNKNOWN: 7 | Rebuild on the latest base image; upgrade fixable packages; track unfixed CVEs. |
 | OWASP ZAP | 3 | LOW: 2, INFO: 1 | Add/adjust security headers; review informational alerts; run full scan before release. |
-| AI Security Tests | n/a | n/a | Investigate any failed scenario; extend guardrails and the attack corpus. |
+| AI Security Tests | 3 | HIGH: 3 | Investigate any failed scenario; extend guardrails and the attack corpus. |
 
 ## Details
 
@@ -112,5 +112,5 @@
 
 **AI Security Tests**
 
-- report missing
+- 14 passed, 3 failed, 0 skipped
 

@@ -35,7 +35,7 @@ ZAP by [Checkmarx](https://checkmarx.com/).
 
 | Name | Risk Level | Number of Instances |
 | --- | --- | --- |
-| Non-Storable Content | Informational | 3 |
+| Non-Storable Content | Informational | 2 |
 
 
 
@@ -54,13 +54,6 @@ ZAP by [Checkmarx](https://checkmarx.com/).
 
 The response contents are not storable by caching components such as proxy servers. If the response does not contain sensitive, personal or user-specific information, it may benefit from being stored and cached, to improve performance.
 
-* URL: http://localhost:5000
-  * Node Name: `http://localhost:5000`
-  * Method: `GET`
-  * Parameter: ``
-  * Attack: ``
-  * Evidence: `no-store`
-  * Other Info: ``
 * URL: http://localhost:5000/robots.txt
   * Node Name: `http://localhost:5000/robots.txt`
   * Method: `GET`
@@ -77,7 +70,7 @@ The response contents are not storable by caching components such as proxy serve
   * Other Info: ``
 
 
-Instances: 3
+Instances: 2
 
 ### Solution
 
