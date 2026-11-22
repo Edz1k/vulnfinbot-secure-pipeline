@@ -24,8 +24,13 @@ def create_app(config: dict | None = None) -> Flask:
     from .routes import bp
 
     app.register_blueprint(bp)
+
+    from .insecure_demo import demo
+
+    app.register_blueprint(demo)
     _register_error_handlers(app)
-    _register_security_headers(app)
+    # [V9] security headers disabled -> detected by OWASP ZAP
+    # _register_security_headers(app)
     return app
 
 
