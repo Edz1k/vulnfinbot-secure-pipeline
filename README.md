@@ -115,11 +115,15 @@ python security/summarize_reports.py reports/
 Triggered on push to `main` and `security-test/**`, on pull requests to `main`, and manually.
 
 ```
-                 ┌─► SAST (Bandit + Semgrep) ──────────────┐
- Unit tests ─────┼─► Dependency scan (pip-audit) ──────────┤
-                 ├─► Docker build + smoke test + Trivy ─► DAST (ZAP) ─┤─► Collect security reports
-                 └─► AI security tests (mock + real LLM) ──┘
+ ┌─► Unit tests ─────────────────────────────┐
+ ├─► SAST (Bandit + Semgrep) ────────────────┤
+ ├─► Dependency scan (pip-audit) ────────────┤
+ ├─► Docker build + smoke test + Trivy ──────┼─► Collect security reports (always)
+ ├─► DAST (container + OWASP ZAP baseline) ──┤
+ └─► AI security tests (mock + Ollama LLM) ──┘
 ```
+
+All jobs run in parallel, so a failing unit test never hides security findings.
 
 | Job | What it does | Gate (fails the pipeline) |
 |---|---|---|
