@@ -121,7 +121,7 @@ def validate_output(text: str) -> tuple[str, list[str]]:
             text = pattern.sub("[REDACTED]", text)
             issues.append("secret_redacted")
 
-    escaped = text  # [V10] html.escape removed (insecure output handling)
+    escaped = html.escape(text, quote=True)
     if escaped != text:
         issues.append("html_escaped")
     text = escaped
