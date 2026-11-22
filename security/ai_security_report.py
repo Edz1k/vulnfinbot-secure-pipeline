@@ -6,6 +6,7 @@ Usage:  python -m security.ai_security_report
 from __future__ import annotations
 
 import datetime as dt
+import html
 import os
 import pathlib
 
@@ -19,7 +20,9 @@ def _cell(text: str, limit: int = 140) -> str:
     text = " ".join(str(text).split())
     if len(text) > limit:
         text = text[: limit - 1] + "…"
-    return text.replace("|", "\\|")
+    # Attack payloads (e.g. <script>, <img>) must never render as live HTML in the
+    # report or in the GitHub job summary - escape them (insecure output handling).
+    return html.escape(text, quote=False).replace("|", "\\|")
 
 
 def main() -> int:
