@@ -130,7 +130,7 @@ All jobs run in parallel, so a failing unit test never hides security findings.
 | Unit tests | `pytest tests/test_app.py`, JUnit XML | any failing test |
 | SAST | Bandit + Semgrep custom rules → JSON/TXT | Bandit HIGH, Semgrep ERROR |
 | Dependency scan | pip-audit on `requirements.txt` | any known vulnerability |
-| Docker + Trivy | build, smoke test `/health` + `/api/chat`, Trivy JSON/table | fixable CRITICAL CVEs |
+| Docker + Trivy | build, smoke test `/health` + `/api/chat`, Trivy JSON/table | fixable HIGH/CRITICAL CVEs |
 | DAST | run container, ZAP baseline → JSON/HTML/MD | report only (`-I`) |
 | AI security | 14 app-level scenarios + 3 real-LLM scenarios (Ollama service container) | app-level failures |
 | Collect reports | merges all reports, builds `security-summary.md`, job summary | — |
