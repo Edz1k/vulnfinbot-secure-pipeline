@@ -23,10 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-unit-tests
           path: reports/
@@ -56,8 +56,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload SAST reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-sast
           path: reports/
@@ -103,8 +103,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -121,7 +121,7 @@ jobs:
 
       - name: Upload dependency report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-dependencies
           path: reports/
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build Docker image
         run: docker build -t "$IMAGE_NAME" .
@@ -161,7 +161,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-trivy
           path: reports/
@@ -178,7 +178,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: container-scan
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build and start application
         run: |
@@ -196,7 +196,7 @@ jobs:
 
       - name: Upload ZAP report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-zap
           path: reports/
@@ -211,16 +211,16 @@ jobs:
     name: AI security tests
     runs-on: ubuntu-latest
     needs: tests
-    permissions:
-      contents: read
-      models: read   # GitHub Models: real LLM for prompt-injection tests
+    services:
+      ollama:   # real open-weights LLM for prompt-injection tests (no secrets needed)
+        image: ollama/ollama:latest
+        ports: ["11434:11434"]
     env:
-      LLM_PROVIDER: github
-      LLM_MODEL: openai/gpt-4o-mini
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      LLM_BASE_URL: http://localhost:11434/v1
+      LLM_MODEL: qwen2.5:1.5b
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -235,7 +235,13 @@ jobs:
           mkdir -p reports
           pytest -v tests/test_ai_security.py -k "not real_llm" --junitxml=reports/ai-security-tests.xml
 
-      - name: Real LLM prompt-injection tests (GitHub Models)
+      - name: Pull LLM model into Ollama
+        continue-on-error: true
+        run: |
+          curl -sS -X POST http://localhost:11434/api/pull -d "{\"model\": \"$LLM_MODEL\", \"stream\": false}"
+          curl -sS http://localhost:11434/api/tags
+
+      - name: Real LLM prompt-injection tests (Ollama)
         continue-on-error: true
         run: pytest -v tests/test_ai_security.py -k "real_llm"
 
@@ -248,7 +254,7 @@ jobs:
 
       - name: Upload AI security report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-ai-security
           path: reports/
@@ -261,13 +267,13 @@ jobs:
     needs: [tests, sast, dependency-scan, container-scan, dast, ai-security]
     if: always()
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download all reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: report-*
           path: reports/
@@ -280,7 +286,7 @@ jobs:
           ls -la reports/
 
       - name: Upload all security reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: vulnfinbot-security-reports
           path: reports/

@@ -19,7 +19,7 @@ all reports as GitHub Actions artifacts.
 | pip-audit | Python dependency vulnerability scanning |
 | Docker (python:3.12-alpine), Trivy | Containerization and image scanning |
 | OWASP ZAP (baseline) | DAST |
-| GitHub Models (`openai/gpt-4o-mini`) | Real LLM for prompt-injection tests in CI (optional) |
+| Ollama + Qwen 2.5 1.5B (open weights) | Real LLM for prompt-injection tests in CI |
 
 ## Architecture
 
@@ -29,7 +29,7 @@ all reports as GitHub Actions artifacts.
             │              generic JSON errors, no PII in logs  │
             │ assistant.py:                                     │
             │   1. input guardrails (injection / disclosure)    │
-            │   2. model  (MockModel | GitHub Models | Claude)  │
+            │   2. model  (MockModel | Ollama/OpenAI-compatible | Claude)  │
             │   3. tool authorization (allow-list per role)     │
             │   4. output validation (canary, secret redaction, │
             │      HTML escaping, length limit)                 │
@@ -85,7 +85,7 @@ curl -X POST http://localhost:5000/api/chat -H "Content-Type: application/json" 
 
 > On macOS port 5000 is used by AirPlay Receiver — use `-p 5050:5000` instead.
 
-To use a real LLM instead of the mock: `LLM_PROVIDER=github GITHUB_TOKEN=<token with models:read>`
+To use a real LLM instead of the mock: `LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=qwen2.5:1.5b` (Ollama)
 or `LLM_API_KEY=<Anthropic key>` (test environment only, never production credentials).
 
 ## Running tests
@@ -128,7 +128,7 @@ Triggered on push to `main` and `security-test/**`, on pull requests to `main`, 
 | Dependency scan | pip-audit on `requirements.txt` | any known vulnerability |
 | Docker + Trivy | build, smoke test `/health` + `/api/chat`, Trivy JSON/table | fixable CRITICAL CVEs |
 | DAST | run container, ZAP baseline → JSON/HTML/MD | report only (`-I`) |
-| AI security | 14 app-level scenarios + 3 real-LLM scenarios (GitHub Models) | app-level failures |
+| AI security | 14 app-level scenarios + 3 real-LLM scenarios (Ollama service container) | app-level failures |
 | Collect reports | merges all reports, builds `security-summary.md`, job summary | — |
 
 Every scanner writes its report in a `continue-on-error` step, uploads it with `if: always()`,

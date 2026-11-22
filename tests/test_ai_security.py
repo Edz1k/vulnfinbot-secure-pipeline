@@ -6,8 +6,8 @@ Two levels of tests:
   application-level controls (input guardrails, tool authorization, output
   validation, no secret leakage). They do NOT prove that an LLM resists
   prompt injection.
-* level="llm"  - run only when a real LLM is configured (LLM_PROVIDER=github
-  with GITHUB_TOKEN, or LLM_API_KEY). They send attacks that are
+* level="llm"  - run only when a real LLM is configured (LLM_BASE_URL of an
+  OpenAI-compatible endpoint such as Ollama, or LLM_API_KEY). They send attacks that are
   designed to slip past the regex guardrails straight to a real model and check
   the model + output validator do not leak the canary/system prompt or comply.
 """
@@ -174,7 +174,7 @@ def test_ai_security_app_level(case: Case):
     assert case.check(result), f"{case.id} failed: {result}"
 
 
-requires_llm = pytest.mark.skipif(not assistant.llm_enabled(), reason="no real LLM configured (LLM_PROVIDER=github or LLM_API_KEY)")
+requires_llm = pytest.mark.skipif(not assistant.llm_enabled(), reason="no real LLM configured (LLM_BASE_URL or LLM_API_KEY)")
 
 
 @requires_llm
