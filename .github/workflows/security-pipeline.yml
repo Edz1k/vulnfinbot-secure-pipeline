@@ -164,10 +164,10 @@ jobs:
           path: reports/
           if-no-files-found: warn
 
-      - name: Security gate - fail on fixable CRITICAL vulnerabilities
+      - name: Security gate - fail on fixable HIGH or CRITICAL vulnerabilities
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            "$TRIVY_IMAGE" image --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE_NAME"
+            "$TRIVY_IMAGE" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE_NAME"
 
   # ----------------------------------------------------------- 5. DAST (ZAP)
   dast:
