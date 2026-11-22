@@ -25,3 +25,4 @@ reports/*
 .DS_Store
 .idea/
 .vscode/
+!reports/ai-security-report.md
